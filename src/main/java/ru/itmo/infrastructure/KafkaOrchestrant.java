@@ -58,7 +58,9 @@ public class KafkaOrchestrant {
 
     public void init() {
         Properties prodProps = new Properties();
-        prodProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        //prodProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        prodProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
+                System.getProperty("kafka.bootstrap.servers", "localhost:9092"));
         prodProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         prodProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
         producer = new KafkaProducer<>(prodProps);

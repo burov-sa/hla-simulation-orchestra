@@ -9,14 +9,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Стресс-тест полной симуляции.
- * 3 модели (A, B, C) обмениваются случайным количеством агентов (1-1000)
- * на протяжении 50 шагов моделирования.
- */
 @Tag("integration-test")
-@Timeout(120) // Даем 2 минуты на завершение
-class FullOrchestraStressTest {
+@Timeout(120)
+class FullOrchestraStressTest extends AbstractKafkaIntegrationTest { // <-- ДОБАВЛЕНО
 
     private KafkaOrchestrator orchestrator;
     private KafkaOrchestrant modelA, modelB, modelC;
@@ -25,32 +20,26 @@ class FullOrchestraStressTest {
 
     @BeforeEach
     void setUp() {
-        // Конфигурация для 3 моделей
         List<SimulationConfig> configs = Arrays.asList(
                 new SimulationConfig("model-A", "fake.bat", ChronoUnit.SECONDS, LocalDateTime.now(), LocalDateTime.now().plusHours(1), false),
                 new SimulationConfig("model-B", "fake.bat", ChronoUnit.SECONDS, LocalDateTime.now(), LocalDateTime.now().plusHours(1), false),
                 new SimulationConfig("model-C", "fake.bat", ChronoUnit.SECONDS, LocalDateTime.now(), LocalDateTime.now().plusHours(1), false)
         );
 
-        // Создаем оркестратор (шаг = 1.0)
         orchestrator = new KafkaOrchestrator(configs, 1.0, true, false);
 
-        // Создаем движки (каждый отправляет агенту следующему в кольце)
         engineA = new AgentSendingEngine("model-A", "model-B", 50.0);
         engineB = new AgentSendingEngine("model-B", "model-C", 50.0);
         engineC = new AgentSendingEngine("model-C", "model-A", 50.0);
 
-        // Создаем приемники (считаем, сколько агентов дошло)
         receiverA = new AgentCountingReceiver();
         receiverB = new AgentCountingReceiver();
         receiverC = new AgentCountingReceiver();
 
-        // Создаем оркестрантов
         modelA = new KafkaOrchestrant("model-A", engineA, receiverA, false);
         modelB = new KafkaOrchestrant("model-B", engineB, receiverB, false);
         modelC = new KafkaOrchestrant("model-C", engineC, receiverC, false);
 
-        // Связываем движки с их оркестрантами (чтобы они могли отправлять агентов)
         engineA.setOrchestrant(modelA);
         engineB.setOrchestrant(modelB);
         engineC.setOrchestrant(modelC);
@@ -58,11 +47,11 @@ class FullOrchestraStressTest {
 
     @AfterEach
     void tearDown() {
-        // 1. Сначала останавливаем модели (потребители и heartbeat)
+        // ИСПРАВЛЕНО: останавливаем ВСЕ 3 модели
         if (modelA != null) modelA.stop();
         if (modelB != null) modelB.stop();
+        if (modelC != null) modelC.stop();  // <-- ДОБАВЛЕНО
 
-        // 2. Затем останавливаем оркестратор
         if (orchestrator != null) {
             orchestrator.stopOrchestrator();
         }
@@ -73,24 +62,21 @@ class FullOrchestraStressTest {
         System.out.println("=== STARTING STRESS TEST: 3 Models, 50 Steps, 1-1000 Agents per step ===");
 
         orchestrator.startOrchestrator();
-        Thread.sleep(3000); // Ждем инициализации топиков
+        Thread.sleep(3000);
 
         modelA.init();
         modelB.init();
         modelC.init();
 
-        // Ждем, пока все модели выполнят 50 шагов
-        long deadline = System.currentTimeMillis() + 90_000; // 90 секунд максимум
+        long deadline = System.currentTimeMillis() + 90_000;
         while (System.currentTimeMillis() < deadline && engineA.getRunFastCount() < 50) {
             Thread.sleep(500);
         }
 
-        // Проверяем, что симуляция прошла ровно 50 шагов
         assertEquals(50, engineA.getRunFastCount(), "Model A must execute 50 steps");
         assertEquals(50, engineB.getRunFastCount(), "Model B must execute 50 steps");
         assertEquals(50, engineC.getRunFastCount(), "Model C must execute 50 steps");
 
-        // Даем время последним агентам долететь и обработаться
         Thread.sleep(3000);
 
         System.out.println("\n--- FINAL AGENT TRANSFER SUMMARY ---");
@@ -99,20 +85,11 @@ class FullOrchestraStressTest {
         System.out.println("Model C: sent=" + engineC.getSentAgents() + ", received=" + receiverC.getReceivedCount());
         System.out.println("------------------------------------\n");
 
-        // Проверяем, что каждая модель и отправила, и получила агентов
         assertTrue(engineA.getSentAgents() > 0 && receiverA.getReceivedCount() > 0, "Model A must send and receive agents");
         assertTrue(engineB.getSentAgents() > 0 && receiverB.getReceivedCount() > 0, "Model B must send and receive agents");
         assertTrue(engineC.getSentAgents() > 0 && receiverC.getReceivedCount() > 0, "Model C must send and receive agents");
     }
 
-    // ==================================================================
-    //  Вспомогательные классы
-    // ==================================================================
-
-    /**
-     * Движок, который в конце каждого шага генерирует от 1 до 1000 агентов
-     * и отправляет их целевому оркестранту.
-     */
     static class AgentSendingEngine extends TestEngine {
         private final String modelId;
         private final String targetModelId;
@@ -121,7 +98,7 @@ class FullOrchestraStressTest {
         private final AtomicInteger sentAgents = new AtomicInteger(0);
 
         public AgentSendingEngine(String modelId, String targetModelId, double stopTime) {
-            super(0.0, stopTime, 10); // 10 мс задержки на шаг
+            super(0.0, stopTime, 10);
             this.modelId = modelId;
             this.targetModelId = targetModelId;
         }
@@ -134,7 +111,7 @@ class FullOrchestraStressTest {
         public void executeStepEndEvent(double duration) {
             super.executeStepEndEvent(duration);
             if (orchestrant != null) {
-                int count = random.nextInt(1000) + 1; // 1..1000
+                int count = random.nextInt(1000) + 1;
                 sentAgents.addAndGet(count);
                 for (int i = 0; i < count; i++) {
                     TransferObject agent = new TransferObject(i, 1, time(), 1, 1, 10.0);
@@ -148,9 +125,6 @@ class FullOrchestraStressTest {
         }
     }
 
-    /**
-     * Приемник, который просто считает количество пришедших агентов.
-     */
     static class AgentCountingReceiver implements IReceivingAgent {
         private final AtomicInteger receivedCount = new AtomicInteger(0);
 

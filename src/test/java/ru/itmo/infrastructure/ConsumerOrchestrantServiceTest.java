@@ -18,46 +18,59 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @Tag("integration-test")
 @Timeout(60)
-class ConsumerOrchestrantServiceTest {
+class ConsumerOrchestrantServiceTest extends AbstractKafkaIntegrationTest {
 
-    private static final String BOOTSTRAP = "localhost:9092";
     private static final String CONTROL_TOPIC = "simulation-control";
     private static final String MODEL_ID = "test-consumer-model";
 
     private KafkaOrchestrant owner;
     private ConsumerOrchestrantService service;
     private KafkaProducer<String, byte[]> testProducer;
+    private KafkaProducer<String, byte[]> ownerProducer;  // <-- новое поле
     private TestEngine testEngine;
 
     private final AtomicReference<byte[]> capturedAgentData = new AtomicReference<>();
 
     @BeforeEach
     void setUp() throws Exception {
-        // Инициализируем тестовый движок
         testEngine = new TestEngine(0.0, 100.0, 50);
-
         owner = new KafkaOrchestrant(MODEL_ID, testEngine, data -> capturedAgentData.set(data), true);
+
+        // ==========================================
+        // ВАЖНО: создаём настоящий producer и внедряем его в owner.
+        // Без этого owner.sendStepCompleted() упадёт с NPE,
+        // потому что owner.init() (который создаёт producer) не вызывается.
+        // ==========================================
+        Properties prodProps = new Properties();
+        prodProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers());
+        prodProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        prodProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
+        // Таймауты, чтобы продюсер не висел бесконечно при проблемах с брокером
+        prodProps.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 5000);
+        prodProps.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 5000);
+        prodProps.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 10000);
+
+        ownerProducer = new KafkaProducer<>(prodProps);
+        Field producerField = KafkaOrchestrant.class.getDeclaredField("producer");
+        producerField.setAccessible(true);
+        producerField.set(owner, ownerProducer);
 
         // Включаем флаг работы
         Field runningField = KafkaOrchestrant.class.getDeclaredField("running");
         runningField.setAccessible(true);
         ((AtomicBoolean) runningField.get(owner)).set(true);
 
-        // Готовим модель к приему шага (эмуляция того, что сделал бы FirstStepEvent)
+        // Готовим модель к приёму шага (эмуляция FirstStepEvent)
         owner.setReadyForStep(true);
         owner.setTrueFirstStepFinished();
 
         service = new ConsumerOrchestrantService(owner);
-        // Убрали service.stepEndEvent, так как теперь события идут через IEngine
         service.start();
 
-        Properties p = new Properties();
-        p.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP);
-        p.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
-        p.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
-        testProducer = new KafkaProducer<>(p);
+        // Producer для отправки команд в топики
+        testProducer = new KafkaProducer<>(prodProps);
 
-        Thread.sleep(2000); // Ждем назначения партиций
+        Thread.sleep(2000); // Ждём назначения партиций
     }
 
     @AfterEach
@@ -69,6 +82,7 @@ class ConsumerOrchestrantServiceTest {
         ((AtomicBoolean) runningField.get(owner)).set(false);
 
         if (testProducer != null) testProducer.close(Duration.ofSeconds(2));
+        if (ownerProducer != null) ownerProducer.close(Duration.ofSeconds(2));
     }
 
     @Test
@@ -79,7 +93,7 @@ class ConsumerOrchestrantServiceTest {
         testProducer.send(new ProducerRecord<>(CONTROL_TOPIC, MODEL_ID, msg.toByteArray()));
         testProducer.flush();
 
-        // Ждем, пока движок выполнит шаг
+        // Ждём, пока движок выполнит шаг
         long deadline = System.currentTimeMillis() + 5000;
         while (System.currentTimeMillis() < deadline && testEngine.getRunFastCount() == 0) {
             Thread.sleep(100);

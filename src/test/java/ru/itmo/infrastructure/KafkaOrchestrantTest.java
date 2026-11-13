@@ -21,9 +21,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @Tag("integration-test")
 @Timeout(60)
-class KafkaOrchestrantTest {
+class KafkaOrchestrantTest extends AbstractKafkaIntegrationTest{
 
-    private static final String BOOTSTRAP = "localhost:9092";
+    //private static final String BOOTSTRAP = "localhost:9092";
     private static final String REGISTRY = "model-registry";
     private static final String CONTROL = "simulation-control";
     private static final String MODEL_ID = "orch-test-model";
@@ -38,7 +38,7 @@ class KafkaOrchestrantTest {
         orchestrant = new KafkaOrchestrant(MODEL_ID, engine, data -> {}, true);
 
         Properties p = new Properties();
-        p.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP);
+        p.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers());
         p.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         p.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
         testProducer = new KafkaProducer<>(p);
@@ -158,7 +158,7 @@ class KafkaOrchestrantTest {
 
         TestConsumer(String... topics) {
             Properties p = new Properties();
-            p.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP);
+            p.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers());
             p.put(ConsumerConfig.GROUP_ID_CONFIG, "test-" + UUID.randomUUID());
             p.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
             p.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());

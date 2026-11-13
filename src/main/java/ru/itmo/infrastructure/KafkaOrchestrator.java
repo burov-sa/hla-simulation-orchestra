@@ -48,7 +48,10 @@ public class KafkaOrchestrator {
     private final ConcurrentHashMap<String, Process> runningModelProcesses = new ConcurrentHashMap<>();
 
     // --- Kafka настройки ---
-    private static final String BOOTSTRAP_SERVERS = "localhost:9092";
+    //private static final String BOOTSTRAP_SERVERS = "localhost:9092";
+    private static String getBootstrapServers() {
+        return System.getProperty("kafka.bootstrap.servers", "localhost:9092");
+    }
     private static final String ORCHESTRATOR_INBOX = "orchestrator-inbox";
     private static final String MODEL_REGISTRY_TOPIC = "model-registry";
     private static final String MODEL_HEARTBEAT_TOPIC = "model-heartbeat";
@@ -113,7 +116,7 @@ public class KafkaOrchestrator {
 
     private static boolean isKafkaReady() {
         Properties props = new Properties();
-        props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
+        props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers());
         props.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, 3000);
         props.put(AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG, 3000);
 
@@ -130,7 +133,7 @@ public class KafkaOrchestrator {
         long backoffMs = 2000;
         for (int i = 1; i <= maxRetries; i++) {
             if (isKafkaReady()) {
-                System.out.println("Kafka is ready to work on " + BOOTSTRAP_SERVERS);
+                System.out.println("Kafka is ready to work on " + getBootstrapServers());
                 return;
             }
             System.out.println("Waiting Kafka... attempt " + i + "/" + maxRetries);
@@ -338,7 +341,7 @@ public class KafkaOrchestrator {
 
     private void initializeKafka() {
         Properties consumerProps = new Properties();
-        consumerProps.put("bootstrap.servers", BOOTSTRAP_SERVERS);
+        consumerProps.put("bootstrap.servers", getBootstrapServers());
         consumerProps.put("group.id", "simulation-orchestrator");
         consumerProps.put("key.deserializer", StringDeserializer.class.getName());
         consumerProps.put("value.deserializer", ByteArrayDeserializer.class.getName());
@@ -346,7 +349,7 @@ public class KafkaOrchestrator {
         consumer = new KafkaConsumer<>(consumerProps);
 
         Properties producerProps = new Properties();
-        producerProps.put("bootstrap.servers", BOOTSTRAP_SERVERS);
+        producerProps.put("bootstrap.servers", getBootstrapServers());
         producerProps.put("key.serializer", StringSerializer.class.getName());
         producerProps.put("value.serializer", ByteArraySerializer.class.getName());
         producer = new KafkaProducer<>(producerProps);
@@ -354,7 +357,7 @@ public class KafkaOrchestrator {
 
     private void createAllTopics() {
         Properties adminProps = new Properties();
-        adminProps.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
+        adminProps.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers());
 
         try (AdminClient admin = AdminClient.create(adminProps)) {
             List<NewTopic> topics = Arrays.asList(
@@ -385,7 +388,7 @@ public class KafkaOrchestrator {
     }
 
     private void deleteTopics(Set<String> topicNames) {
-        try (AdminClient admin = AdminClient.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS))) {
+        try (AdminClient admin = AdminClient.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers()))) {
             DeleteTopicsResult result = admin.deleteTopics(topicNames);
             result.all().get(10, TimeUnit.SECONDS);
             System.out.println("Topics deleted: " + topicNames);
@@ -401,7 +404,7 @@ public class KafkaOrchestrator {
     }
 
     private Set<String> getAllTopicsWithPrefix(String prefix) {
-        try (AdminClient admin = AdminClient.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS))) {
+        try (AdminClient admin = AdminClient.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers()))) {
             ListTopicsResult topicsResult = admin.listTopics();
             Set<String> allTopics = topicsResult.names().get(5, TimeUnit.SECONDS);
             return allTopics.stream().filter(name -> name.startsWith(prefix)).collect(Collectors.toSet());
@@ -504,7 +507,7 @@ public class KafkaOrchestrator {
 
     private void createTopicIfNotExists(String topicName) {
         Properties adminProps = new Properties();
-        adminProps.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
+        adminProps.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers());
 
         try (AdminClient admin = AdminClient.create(adminProps)) {
             NewTopic topic = new NewTopic(topicName, 1, (short) 1);
@@ -688,7 +691,12 @@ public class KafkaOrchestrator {
             // Формируем простую текстовую строку для DLQ
             String dlqText = reason + " | Original (Base64): " + Base64.getEncoder().encodeToString(originalMessage);
             producer.send(new ProducerRecord<>(DEAD_LETTER_TOPIC, dlqText.getBytes(StandardCharsets.UTF_8)));
-            System.out.println("Message has been sent to DLQ: " + reason);
+
+            // Логируем только в режиме отладки, чтобы не засорять консоль
+            // при массовых отправках в DLQ (например, при завершении симуляции).
+            if (this.isDebug) {
+                System.out.println("Message has been sent to DLQ: " + reason);
+            }
         } catch (Exception e) {
             System.err.print("Error sending to DLQ: " + e.getMessage());
         }

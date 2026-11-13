@@ -23,9 +23,9 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @Tag("integration-test")
 @Timeout(30)
-class RegistrationOrchestrantServiceTest {
+class RegistrationOrchestrantServiceTest extends AbstractKafkaIntegrationTest{
 
-    private static final String BOOTSTRAP = "localhost:9092";
+    //private static final String BOOTSTRAP = "localhost:9092";
     private static final String REGISTRY_TOPIC = "model-registry";
     private static final String MODEL_ID = "test-registration-model";
     private static final String INBOX_TOPIC = MODEL_ID + "-inbox";
@@ -41,7 +41,7 @@ class RegistrationOrchestrantServiceTest {
 
         // 2. Создаем настоящий продюсер и внедряем его в owner через рефлексию
         Properties p = new Properties();
-        p.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP);
+        p.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers());
         p.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         p.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
         testProducer = new KafkaProducer<>(p);
@@ -119,7 +119,7 @@ class RegistrationOrchestrantServiceTest {
 
         TestConsumer(String topic) {
             Properties p = new Properties();
-            p.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP);
+            p.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers());
             p.put(ConsumerConfig.GROUP_ID_CONFIG, "test-reg-" + UUID.randomUUID());
             p.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
             p.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());

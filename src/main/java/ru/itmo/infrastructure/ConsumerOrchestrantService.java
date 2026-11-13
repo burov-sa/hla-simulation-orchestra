@@ -30,7 +30,9 @@ public class ConsumerOrchestrantService {
         // 1. COMMAND THREAD (Управление шагами)
         // ==========================================
         Properties cmdProps = new Properties();
-        cmdProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        //cmdProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        cmdProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
+                System.getProperty("kafka.bootstrap.servers", "localhost:9092"));
         cmdProps.put(ConsumerConfig.GROUP_ID_CONFIG, owner.getID() + "-commands");
         cmdProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         cmdProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
@@ -119,7 +121,9 @@ public class ConsumerOrchestrantService {
         // 2. CONSUMER THREAD (Прием агентов)
         // ==========================================
         Properties consProps = new Properties();
-        consProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        //consProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        consProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
+                System.getProperty("kafka.bootstrap.servers", "localhost:9092"));
         consProps.put(ConsumerConfig.GROUP_ID_CONFIG, owner.getID() + "-agents");
         consProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         consProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());

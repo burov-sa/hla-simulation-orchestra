@@ -24,9 +24,9 @@ import static org.junit.jupiter.api.Assertions.*;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @Timeout(180)
 @Tag("integration-test")
-class KafkaOrchestratorTest {
+class KafkaOrchestratorTest extends AbstractKafkaIntegrationTest{
 
-    private static final String BOOTSTRAP     = "localhost:9092";
+    //private static final String BOOTSTRAP     = "localhost:9092";
     private static final String ORCH_INBOX    = "orchestrator-inbox";
     private static final String REGISTRY      = "model-registry";
     private static final String HEARTBEAT     = "model-heartbeat";
@@ -39,12 +39,12 @@ class KafkaOrchestratorTest {
     @BeforeAll
     static void checkKafkaAvailable() {
         Properties p = new Properties();
-        p.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP);
+        p.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers());
         p.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, 3000);
         try (AdminClient admin = AdminClient.create(p)) {
             admin.listTopics().names().get(3, TimeUnit.SECONDS);
         } catch (Exception e) {
-            fail("Kafka is not available on " + BOOTSTRAP + ": " + e.getMessage()
+            fail("Kafka is not available on " + getBootstrapServers()+ ": " + e.getMessage()
                     + "\nStart it with: docker compose up -d");
         }
     }
@@ -52,7 +52,7 @@ class KafkaOrchestratorTest {
     @BeforeEach
     void setUp() {
         Properties p = new Properties();
-        p.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP);
+        p.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers());
         p.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         p.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
         producer = new KafkaProducer<>(p);
@@ -470,7 +470,7 @@ class KafkaOrchestratorTest {
 
     private static Properties adminProps() {
         Properties p = new Properties();
-        p.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP);
+        p.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers());
         return p;
     }
 
@@ -566,7 +566,7 @@ class KafkaOrchestratorTest {
 
         TestConsumer(String... topics) {
             Properties p = new Properties();
-            p.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP);
+            p.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers());
             p.put(ConsumerConfig.GROUP_ID_CONFIG, "test-" + UUID.randomUUID());
             p.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
             p.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());

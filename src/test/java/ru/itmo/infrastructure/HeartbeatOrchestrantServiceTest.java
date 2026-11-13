@@ -25,9 +25,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @Timeout(30)
 @Tag("integration-test")
-class HeartbeatOrchestrantServiceTest {
+class HeartbeatOrchestrantServiceTest extends AbstractKafkaIntegrationTest{
 
-    private static final String BOOTSTRAP = "localhost:9092";
+    //private static final String BOOTSTRAP = "localhost:9092";
     private static final String HEARTBEAT_TOPIC = "model-heartbeat";
     private static final String MODEL_ID = "test-heartbeat-model";
 
@@ -37,7 +37,7 @@ class HeartbeatOrchestrantServiceTest {
 
         // Настраиваем продюсер
         Properties prodProps = new Properties();
-        prodProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP);
+        prodProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers());
         prodProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         prodProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
         KafkaProducer<String, byte[]> realProducer = new KafkaProducer<>(prodProps);
@@ -52,7 +52,7 @@ class HeartbeatOrchestrantServiceTest {
 
         // Сначала создаём консьюмер и подписываемся, чтобы не пропустить сообщение
         Properties consProps = new Properties();
-        consProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP);
+        consProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers());
         consProps.put(ConsumerConfig.GROUP_ID_CONFIG, "test-heartbeat-" + UUID.randomUUID());
         consProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         consProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
