@@ -1,0 +1,55 @@
+syntax = "proto3";
+option java_package = "infrastructure";
+
+// ===== Соообщения МОДЕЛЬ -->>> ОРКЕСТРАТОР ==================
+message ModelMessage {
+  string senderModelId = 1;
+  oneof kind {
+    Registration registration = 2;
+    Heartbeat heartbeat = 3;
+    AgentTransfer agent_transfer = 4;
+    StepCompleted step_completed = 5;
+    StepCompletedAndFinished step_completed_and_finished = 6;
+  }
+}
+
+message Registration {
+  string inboxTopic = 1;
+  bool isOnline = 2; // true = ONLINE, false = OFFLINE
+}
+
+message Heartbeat {}
+message StepCompleted {}
+message StepCompletedAndFinished {}
+
+message AgentTransfer {
+  string targetModelId = 1;
+  AgentMessage agent = 2;
+}
+
+// ===== Соообщения ОРКЕСТРАТОР -->>> МОДЕЛЬ ==================
+message OrchestratorMessage {
+  oneof kind {
+    NextStepCommand next_step = 1;
+    StopSimulationCommand stop_simulation = 2;
+    AgentTransfer agent_transfer = 3;
+  }
+}
+
+message NextStepCommand {
+  double nextSimulationTime = 1;
+}
+
+message StopSimulationCommand {}
+
+// ==========================================
+// Общие структуры
+// ==========================================
+message AgentMessage {
+  int32 agentId = 1;
+  int32 sourceId = 2;
+  double creationTime = 3;
+  int32 categoryId = 4;
+  int32 categoryFlowId = 5;
+  double volume = 6;
+}

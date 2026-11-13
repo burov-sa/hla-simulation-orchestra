@@ -1,0 +1,16 @@
+{
+  "timeUnit": "MINUTES",
+  "startSimulation": "01-01-2027T0:00:00",
+  "stopSimulation": "02-01-2026T00:00:00",
+  "isDebug": false,
+  "models": [
+    {
+      "id": "model-1",
+      "filePath": "C:\\Users\\burov\\Desktop\\Model\\model_windows.bat"
+    },
+    {
+      "id": "model-2",
+      "filePath": "C:\\Users\\burov\\Desktop\\Model\\model_windows.bat"
+    }
+  ]
+}
