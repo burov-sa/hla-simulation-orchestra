@@ -9,13 +9,23 @@
 1.  **KafkaOrchestrator (Оркестратор):** Центральный узел, который управляет жизненным циклом симуляции. Он отслеживает регистрацию моделей, синхронизирует шаги времени (барьер), маршрутизирует агентов между моделями и обрабатывает сбои (через Heartbeat и Dead Letter Queue).
 2.  **KafkaOrchestrant (Оркестрант):** Обертка над конкретной моделью. Она подключается к Kafka, регистрируется в оркестраторе, отправляет Heartbeat и выполняет команды (начать шаг, завершить симуляцию). Оркестрант абстрагирован от конкретного движка через интерфейс `IEngine`.
 
+![scheme-structure.drawio.png](scheme-structure.drawio.png)
+
 ### Основные сервисы Оркестранта:
 *   `RegistrationOrchestrantService`: Отправляет сообщения `ONLINE`/`OFFLINE`.
 *   `HeartbeatOrchestrantService`: Периодически сообщает оркестратору, что модель жива.
 *   `ConsumerOrchestrantService`: Читает команды от оркестратора и принимает агентов.
 
+![scheme-information.drawio.png](scheme-information.drawio.png)
+
 ### Протокол обмена (Protobuf)
 Вся коммуникация ведется в бинарном формате Protobuf (`Protobufmessages.proto`), что обеспечивает высокую скорость и строгую типизацию. Основные типы сообщений: `ModelMessage` (от модели) и `OrchestratorMessage` (от оркестратора).
+
+#### Диаграмма взаимодействия (начало моделирования, цикл моделирования)
+![scheme-communication-1.drawio.png](scheme-communication-1.drawio.png)
+
+#### Диаграмма взаимодействия (остановка, обмен данным)
+![scheme-communication-2.drawio.png](scheme-communication-2.drawio.png)
 
 ## 🚀 Запуск и тестирование
 

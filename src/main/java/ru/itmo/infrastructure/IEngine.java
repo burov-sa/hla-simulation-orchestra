@@ -54,8 +54,9 @@ public interface IEngine {
 
     /**
      * Вызывается один раз в начале симуляции.
-     * Внутри AnyLogic должен планировать DynamicEvent на время 0,
+     * Внутри, например AnyLogic, должно планироваться DynamicEvent на время 0,
      * который ставит модель на паузу и переводит в режим ожидания.
+     *
      */
     void executeFirstStepEvent();
 
