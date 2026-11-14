@@ -1,3 +1,5 @@
+import com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask
+
 plugins {
     `java-library`
     `java-test-fixtures`
@@ -59,4 +61,8 @@ publishing {
     publications.create<MavenPublication>("maven") {
         from(components["java"])
     }
+}
+
+tasks.named<DependencyUpdatesTask>("dependencyUpdates") {
+    checkConstraints = true
 }

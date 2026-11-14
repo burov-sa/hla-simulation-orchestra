@@ -20,5 +20,5 @@ log4j2-api.module = "org.apache.logging.log4j:log4j-api"
 log4j2-slf4j2Impl.module = "org.apache.logging.log4j:log4j-slf4j2-impl"
 
 protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf" }
-gson = "com.google.code.gson:gson:2.14.0"
+gson = "com.google.code.gson:gson:2.15.0"
 kafka-clients = "org.apache.kafka:kafka-clients:4.4.0"
