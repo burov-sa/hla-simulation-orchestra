@@ -1,6 +1,7 @@
 package ru.itmo.infrastructure;
 
 import infrastructure.Protobufmessages;
+import lombok.extern.log4j.Log4j2;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -12,7 +13,8 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
 
-public class ConsumerOrchestrantService {
+@Log4j2
+public final class ConsumerOrchestrantService {
     private final KafkaOrchestrant owner;
     private Thread commandThread;
     private Thread consumerThread;
@@ -83,7 +85,7 @@ public class ConsumerOrchestrantService {
 
                                     if (started) {
                                         if (owner.isDebug) {
-                                            System.out.println("model time " + engine.time() + " : step completed");
+                                            log.debug("model time {} : step completed", engine.time());
                                         }
 
                                         // 5. Отправляем оркестратору отчет о завершении шага
@@ -93,22 +95,22 @@ public class ConsumerOrchestrantService {
                                             owner.sendStepCompleted();
                                         }
                                     } else {
-                                        System.out.println("Error: Failed to execute simulation step");
+                                        log.error("Failed to execute simulation step");
                                     }
                                 }
                             } else if (msg.hasStopSimulation()) {
-                                System.out.println("model time " + engine.time() + " : received STOP_SIMULATION");
+                                log.info("model time {} : received STOP_SIMULATION", engine.time());
                                 owner.stop();
                             }
                         } catch (Exception e) {
-                            System.out.println("Error parsing command: " + e.getMessage());
+                            log.error("Error parsing command", e);
                         }
                     }
                 } catch (WakeupException | InterruptException e) {
                     break;
                 } catch (Exception e) {
                     if (!owner.isRunning()) break;
-                    System.err.print("Command thread error: " + e.getMessage());
+                    log.error("Command thread error", e);
                 }
             }
             Thread.interrupted();
@@ -151,7 +153,7 @@ public class ConsumerOrchestrantService {
                     break;
                 } catch (Exception e) {
                     if (!owner.isRunning()) break;
-                    System.err.print("Consumer thread error: " + e.getMessage());
+                    log.error("Consumer thread error: {}", e.getMessage());
                 }
             }
             Thread.interrupted();

@@ -1,5 +1,6 @@
 package ru.itmo.infrastructure;
 
+import lombok.extern.log4j.Log4j2;
 import ru.itmo.model.SimulationConfig;
 import org.junit.jupiter.api.*;
 import java.time.LocalDateTime;
@@ -11,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @Tag("integration-test")
 @Timeout(180)
+@Log4j2
 class FullOrchestraMeshStressTest extends AbstractKafkaIntegrationTest { // <-- ДОБАВЛЕНО
 
     private KafkaOrchestrator orchestrator;
@@ -58,7 +60,7 @@ class FullOrchestraMeshStressTest extends AbstractKafkaIntegrationTest { // <-- 
 
     @Test
     void fullMeshSimulation_50StepsWithMassiveAgentTransfer() throws Exception {
-        System.out.println("=== STARTING FULL MESH STRESS TEST: 3 Models, 50 Steps, 1-1000 Agents to EACH target per step ===");
+        log.info("=== STARTING FULL MESH STRESS TEST: 3 Models, 50 Steps, 1-1000 Agents to EACH target per step ===");
 
         orchestrator.startOrchestrator();
         Thread.sleep(3000);
@@ -78,18 +80,18 @@ class FullOrchestraMeshStressTest extends AbstractKafkaIntegrationTest { // <-- 
 
         Thread.sleep(3000);
 
-        System.out.println("\n--- FINAL MESH AGENT TRANSFER SUMMARY ---");
-        System.out.println("Model A: sent=" + engineA.getSentAgents() + ", received=" + receiverA.getReceivedCount());
-        System.out.println("Model B: sent=" + engineB.getSentAgents() + ", received=" + receiverB.getReceivedCount());
-        System.out.println("Model C: sent=" + engineC.getSentAgents() + ", received=" + receiverC.getReceivedCount());
-        System.out.println("-----------------------------------------\n");
+        log.info("\n--- FINAL MESH AGENT TRANSFER SUMMARY ---");
+        log.info("Model A: sent={}, received={}", engineA.getSentAgents(), receiverA.getReceivedCount());
+        log.info("Model B: sent={}, received={}", engineB.getSentAgents(), receiverB.getReceivedCount());
+        log.info("Model C: sent={}, received={}", engineC.getSentAgents(), receiverC.getReceivedCount());
+        log.info("-----------------------------------------\n");
 
         assertTrue(engineA.getSentAgents() > 0 && receiverA.getReceivedCount() > 0, "Model A must send and receive agents");
         assertTrue(engineB.getSentAgents() > 0 && receiverB.getReceivedCount() > 0, "Model B must send and receive agents");
         assertTrue(engineC.getSentAgents() > 0 && receiverC.getReceivedCount() > 0, "Model C must send and receive agents");
     }
 
-    static class AgentSendingMeshEngine extends TestEngine {
+    static final class AgentSendingMeshEngine extends TestEngine {
         private final List<String> targetModelIds;
         private final Random random = new Random();
         private KafkaOrchestrant orchestrant;

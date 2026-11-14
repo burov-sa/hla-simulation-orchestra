@@ -1,7 +1,6 @@
-package jcstress;
+package ru.itmo.infrastructure;
 
 import org.openjdk.jcstress.annotations.*;
-import ru.itmo.infrastructure.KafkaOrchestrant;
 
 @JCStressTest(Mode.Termination)
 @Outcome(
@@ -36,7 +35,7 @@ public class KafkaOrchestrantVisibilityTest {
     @Actor
     public void actor1_reader() {
         while (orchestrant.isRunning()) {
-            // busy-wait: ждем, когда другой поток выставит false
+            Thread.onSpinWait();
         }
     }
 
