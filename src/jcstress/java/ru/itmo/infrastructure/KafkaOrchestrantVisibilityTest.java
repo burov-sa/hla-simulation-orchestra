@@ -1,7 +1,6 @@
-package jcstress;
+package ru.itmo.infrastructure;
 
 import org.openjdk.jcstress.annotations.*;
-import ru.itmo.infrastructure.KafkaOrchestrant;
 
 @JCStressTest(Mode.Termination)
 @Outcome(

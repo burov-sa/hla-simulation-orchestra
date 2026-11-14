@@ -1,6 +1,7 @@
 package ru.itmo.infrastructure;
 
 import infrastructure.Protobufmessages;
+import lombok.extern.log4j.Log4j2;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -9,7 +10,8 @@ import org.apache.kafka.common.serialization.ByteArraySerializer;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class KafkaOrchestrant {
+@Log4j2
+public final class KafkaOrchestrant {
     private final String id;
     public boolean isDebug = false;
     public IReceivingAgent receivingAgent;
@@ -90,7 +92,7 @@ public class KafkaOrchestrant {
         if (!shuttingDown.compareAndSet(false, true)) return;
         if (registration != null) {
             try { registration.unsubscribe(); } catch (Exception e) {
-                System.err.print("Error sending OFFLINE: " + e.getMessage());
+                log.error("Error sending OFFLINE: " + e.getMessage());
             }
         }
         performShutdown();
@@ -98,14 +100,15 @@ public class KafkaOrchestrant {
 
     private void performShutdown() {
         if (engine != null) {
-            try { engine.pause(); } catch (Exception e) { System.err.print("Engine pause error: " + e.getMessage()); }
+            try { engine.pause(); } catch (Exception e) {
+                log.error("Engine pause error", e); }
         }
 
         stopped.set(true);
         running.set(false);
 
-        if (consumer != null) try { consumer.stop(); } catch (Exception e) { System.err.print("Consumer stop error: " + e.getMessage()); }
-        if (heartbeat != null) try { heartbeat.stop(); } catch (Exception e) { System.err.print("Heartbeat stop error: " + e.getMessage()); }
+        if (consumer != null) try { consumer.stop(); } catch (Exception e) { log.error("Consumer stop error", e); }
+        if (heartbeat != null) try { heartbeat.stop(); } catch (Exception e) { log.error("Heartbeat stop error", e); }
 
         if (engine != null) {
             try { engine.experimentClose(); } catch (Exception e) { }
@@ -116,8 +119,8 @@ public class KafkaOrchestrant {
             try { producer.close(); } catch (Exception e) { }
         }
 
-        if (engine != null) System.out.println("model time " + engine.time() + " : Model is shutdown");
-        else System.out.println("Model is shutdown");
+        if (engine != null) log.info("model time {} : Model is shutdown", engine.time());
+        else log.info("Model is shutdown");
     }
 
     public static void joinThread(Thread thread) {
@@ -125,7 +128,7 @@ public class KafkaOrchestrant {
         thread.interrupt();
         try { thread.join(5000); } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            System.err.println("Warning: waiting threat join() has been interrupted: " + thread.getName());
+            log.error("Warning: waiting threat join() has been interrupted: {}", thread.getName());
         }
     }
 

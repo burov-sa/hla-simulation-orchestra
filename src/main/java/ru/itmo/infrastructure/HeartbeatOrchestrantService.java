@@ -1,10 +1,11 @@
-// HeartbeatOrchestrantService.java
 package ru.itmo.infrastructure;
 
 import infrastructure.Protobufmessages;
+import lombok.extern.log4j.Log4j2;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
-public class HeartbeatOrchestrantService {
+@Log4j2
+public final class HeartbeatOrchestrantService {
     private static final long INTERVAL_MS = 10_000;
     private Thread heartbeatThread;
     private final KafkaOrchestrant owner;
@@ -27,7 +28,7 @@ public class HeartbeatOrchestrantService {
                     Thread.currentThread().interrupt();
                     break;
                 } catch (Exception e) {
-                    System.err.println("Heartbeat error: " + e.getMessage());
+                    log.error("Heartbeat error", e);
                 }
             }
         });

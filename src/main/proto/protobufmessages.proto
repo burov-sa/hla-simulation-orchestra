@@ -1,9 +1,9 @@
 syntax = "proto3";
 option java_package = "infrastructure";
 
-// ===== Соообщения МОДЕЛЬ -->>> ОРКЕСТРАТОР ==================
+// ===== Сообщения МОДЕЛЬ -->>> ОРКЕСТРАТОР ==================
 message ModelMessage {
-  string senderModelId = 1;
+  string sender_model_id = 1;
   oneof kind {
     Registration registration = 2;
     Heartbeat heartbeat = 3;

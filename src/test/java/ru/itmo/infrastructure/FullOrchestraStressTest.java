@@ -90,7 +90,7 @@ class FullOrchestraStressTest extends AbstractKafkaIntegrationTest { // <-- ДО
         assertTrue(engineC.getSentAgents() > 0 && receiverC.getReceivedCount() > 0, "Model C must send and receive agents");
     }
 
-    static class AgentSendingEngine extends TestEngine {
+    static final class AgentSendingEngine extends TestEngine {
         private final String modelId;
         private final String targetModelId;
         private final Random random = new Random();

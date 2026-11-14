@@ -1,9 +1,11 @@
 package ru.itmo.infrastructure;
 
 import infrastructure.Protobufmessages;
+import lombok.extern.log4j.Log4j2;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
-public class RegistrationOrchestrantService {
+@Log4j2
+public final class RegistrationOrchestrantService {
     KafkaOrchestrant owner;
 
     public RegistrationOrchestrantService(KafkaOrchestrant owner) { this.owner = owner; }
@@ -19,7 +21,9 @@ public class RegistrationOrchestrantService {
                     .setRegistration(reg)
                     .build();
             owner.getProducer().send(new ProducerRecord<>(owner.getModelRegistyTopic(), msg.toByteArray()));
-        } catch (Exception e) { System.err.print("Error ONLINE: " + e.getMessage()); }
+        } catch (Exception e) {
+            log.error("ONLINE", e);
+        }
     }
 
     public void unsubscribe() {
@@ -33,6 +37,8 @@ public class RegistrationOrchestrantService {
                     .build();
             owner.getProducer().send(new ProducerRecord<>(owner.getModelRegistyTopic(), msg.toByteArray()));
             owner.getProducer().flush();
-        } catch (Exception e) { System.err.print("Error OFFLINE: " + e.getMessage()); }
+        } catch (Exception e) {
+            log.error("OFFLINE", e);
+        }
     }
 }

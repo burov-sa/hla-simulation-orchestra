@@ -2,6 +2,7 @@ package ru.itmo.infrastructure;
 
 import infrastructure.Protobufmessages;
 import com.google.protobuf.InvalidProtocolBufferException;
+import lombok.extern.log4j.Log4j2;
 import ru.itmo.model.SimulationConfig;
 import ru.itmo.model.SimulationConfigLoader;
 import org.apache.kafka.clients.admin.*;
@@ -31,7 +32,8 @@ import java.time.format.DateTimeFormatter;
  * Оркестратор для AnyLogic.
  * Все сообщения передаются в формате Protobuf.
  */
-public class KafkaOrchestrator {
+@Log4j2
+public final class KafkaOrchestrator {
 
     // --- Параметры оркестратора ---
     private final List<SimulationConfig> simulationConfigs;
@@ -109,7 +111,7 @@ public class KafkaOrchestrator {
             logConfiguration(params);
             return new KafkaOrchestrator(params, stepDuration, cleanOnStart, debugMode);
         } catch (IOException e) {
-            System.out.println("ERROR: error initialization from configuration file: " + configPath);
+            log.error("Failed to initialize from configuration file: {}", configPath);
             return null;
         }
     }
@@ -133,10 +135,10 @@ public class KafkaOrchestrator {
         long backoffMs = 2000;
         for (int i = 1; i <= maxRetries; i++) {
             if (isKafkaReady()) {
-                System.out.println("Kafka is ready to work on " + getBootstrapServers());
+                log.info("Kafka is ready to work on {}", getBootstrapServers());
                 return;
             }
-            System.out.println("Waiting Kafka... attempt " + i + "/" + maxRetries);
+            log.info("Waiting Kafka... attempt {}/{}", i, maxRetries);
             try {
                 Thread.sleep(backoffMs);
             } catch (InterruptedException e) {
@@ -149,8 +151,9 @@ public class KafkaOrchestrator {
     }
 
     private static void logConfiguration(List<SimulationConfig> params) {
-        System.out.println("SUCCESSFULL: Models configuration is loaded: ");
-        params.forEach(System.out::println);
+        // TODO: логгировать оним сообщением
+        log.info("SUCCESSFUL: Models configuration is loaded: ");
+        params.forEach(param -> log.info("{}", param));
     }
 
     // --- Getters & Setters ---
@@ -168,7 +171,7 @@ public class KafkaOrchestrator {
 
     public void startOrchestrator() {
         if (orchestratorThread != null && orchestratorThread.isAlive()) {
-            System.out.println("Warning: Orchestrator is already loaded");
+            log.warn("Orchestrator is already loaded");
             return;
         }
         this.running = true;
@@ -183,18 +186,17 @@ public class KafkaOrchestrator {
             try {
                 start();
             } catch (Exception e) {
-                System.err.print("Orchestrator error: " + e.getMessage());
-                e.printStackTrace();
+                log.error("Orchestrator error", e);
             }
         });
         orchestratorThread.setDaemon(true);
         orchestratorThread.start();
 
-        System.out.println("Orchestrator is loaded in a separate thread");
+        log.info("Orchestrator is loaded in a separate thread");
     }
 
     public void finishModeling() {
-        System.out.println("SIMULATION FINISHED. NO ACTIVE MODELS");
+        log.info("SIMULATION FINISHED. NO ACTIVE MODELS");
         stopOrchestrator();
     }
 
@@ -224,9 +226,9 @@ public class KafkaOrchestrator {
             for (String modelId : expectedModelIds) {
                 sendStopSimulationToModel(modelId);
             }
-            System.out.println("Command STOP_SIMULATION has been sent to all Orchestrants");
+            log.info("Command STOP_SIMULATION has been sent to all Orchestrants");
         } else {
-            System.out.println("Warning: Command STOP_SIMULATION has already sent");
+            log.warn("Command STOP_SIMULATION has already sent");
         }
     }
 
@@ -246,7 +248,7 @@ public class KafkaOrchestrator {
 
             File file = new File(batFile);
             if (!file.exists()) {
-                System.out.println("File not found: " + batFile);
+                log.error("File not found: {}", batFile);
                 continue;
             }
 
@@ -266,15 +268,15 @@ public class KafkaOrchestrator {
                 runningModelProcesses.put(modelId, process);
                 startProcessStreamConsumers(process, modelId);
                 atLeastOneLaunched = true;
-                System.out.println("Model " + modelId + " has been launched (" + batFile + ")");
+                log.info("Model {} has been launched ({})", modelId, batFile);
             } catch (IOException e) {
-                System.err.print("Model launch error: " + modelId + ": " + e.getMessage());
+                log.error("Model launch error: {}", modelId, e);
                 return false;
             }
         }
 
         if (!atLeastOneLaunched) {
-            System.err.println("No models were launched. Check configuration and file paths.");
+            log.error("No models were launched. Check configuration and file paths.");
             return false;
         }
         return true;
@@ -285,7 +287,7 @@ public class KafkaOrchestrator {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    if (isDebug) System.out.println("[" + modelId + " stdout] " + line);
+                    if (isDebug) log.debug("[{} stdout] {}", modelId, line);
                 }
             } catch (IOException ignored) {}
         }, "stdout-consumer-" + modelId);
@@ -296,7 +298,7 @@ public class KafkaOrchestrator {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    System.err.print("[" + modelId + " stderr] " + line);
+                    log.error("[{} stderr] {}", modelId, line);
                 }
             } catch (IOException ignored) {}
         }, "stderr-consumer-" + modelId);
@@ -309,12 +311,12 @@ public class KafkaOrchestrator {
             String modelId = entry.getKey();
             Process process = entry.getValue();
             if (process.isAlive()) {
-                System.out.println("Completing the model thread " + modelId);
+                log.info("Completing the model thread {}", modelId);
                 process.destroy();
                 try {
                     if (!process.waitFor(5, TimeUnit.SECONDS)) {
                         process.destroyForcibly();
-                        System.err.print("Thread " + modelId + " is completed forcibly");
+                        log.info("Thread {} is completed forcibly", modelId);
                     }
                 } catch (InterruptedException e) {
                     process.destroyForcibly();
@@ -371,19 +373,19 @@ public class KafkaOrchestrator {
             for (NewTopic topic : topics) {
                 try {
                     admin.createTopics(Collections.singleton(topic)).all().get();
-                    System.out.println("Topic created: " + topic.name());
+                    log.info("Topic created: {}", topic.name());
                 } catch (ExecutionException e) {
                     if (e.getCause() instanceof TopicExistsException) {
-                        System.out.println("Warning: Topic already exists: " + topic.name());
+                        log.warn("Topic already exists: {}", topic.name());
                     } else {
-                        System.err.print("Topic creation error: " + topic.name() + ": " + e.getMessage());
+                        log.error("Topic creation error: {}", topic.name(), e);
                     }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
             }
         } catch (Exception e) {
-            System.err.print("AdminClient initialization error: " + e.getMessage());
+            log.error("AdminClient initialization error", e);
         }
     }
 
@@ -391,15 +393,15 @@ public class KafkaOrchestrator {
         try (AdminClient admin = AdminClient.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers()))) {
             DeleteTopicsResult result = admin.deleteTopics(topicNames);
             result.all().get(10, TimeUnit.SECONDS);
-            System.out.println("Topics deleted: " + topicNames);
+            log.info("Topics deleted: {}", topicNames);
         } catch (ExecutionException e) {
             if (e.getCause() instanceof UnknownTopicOrPartitionException) {
-                System.out.println("Attempt to delete non-existent topics: " + topicNames);
+                log.error("Attempt to delete non-existent topics: {}", topicNames);
             } else {
-                System.err.print("Error removing topics: " + e.getMessage());
+                log.error("Failed to remove topics", e);
             }
         } catch (Exception e) {
-            System.err.print("Error removing topics: " + e.getMessage());
+            log.error("Failed to remove topics", e);
         }
     }
 
@@ -409,13 +411,13 @@ public class KafkaOrchestrator {
             Set<String> allTopics = topicsResult.names().get(5, TimeUnit.SECONDS);
             return allTopics.stream().filter(name -> name.startsWith(prefix)).collect(Collectors.toSet());
         } catch (Exception e) {
-            System.err.print("Error getting the list of topics: " + e.getMessage());
+            log.error("Failed to get the list of topics: {}", e.getMessage());
             return Collections.emptySet();
         }
     }
 
     private void cleanAllTopics() {
-        System.out.println("Clearing all topics...");
+        log.info("Clearing all topics...");
 
         Set<String> systemTopics = new HashSet<>(Arrays.asList(
                 ORCHESTRATOR_INBOX, MODEL_REGISTRY_TOPIC, MODEL_HEARTBEAT_TOPIC,
@@ -435,13 +437,13 @@ public class KafkaOrchestrator {
             deleteTopics(allToDelete);
             try { Thread.sleep(2000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
         } else {
-            System.out.println("There are no topics to delete");
+            log.info("There are no topics to delete");
         }
     }
 
     private void subscribeToTopics() {
         consumer.subscribe(Arrays.asList(ORCHESTRATOR_INBOX, MODEL_REGISTRY_TOPIC, MODEL_HEARTBEAT_TOPIC));
-        System.out.println("Orchestrator subscribed to the topics");
+        log.info("Orchestrator subscribed to the topics");
     }
 
     private void startHeartbeatChecker() {
@@ -462,7 +464,7 @@ public class KafkaOrchestrator {
             } catch (WakeupException e) {
                 break;
             } catch (Exception e) {
-                System.err.println("Error in the main loop: " + e.getMessage());
+                log.error("Error in the main loop", e);
             }
         }
     }
@@ -480,7 +482,7 @@ public class KafkaOrchestrator {
 
                     activeModels.compute(modelId, (id, existing) -> {
                         if (existing == null) {
-                            System.out.println("Model is registered: " + modelId + " (topic " + inboxTopic + ")");
+                            log.info("Model is registered: {} (topic {})", modelId, inboxTopic);
                             return new ModelInfo(inboxTopic, Instant.now());
                         } else {
                             existing.inboxTopic = inboxTopic;
@@ -496,12 +498,12 @@ public class KafkaOrchestrator {
                 } else {
                     activeModels.remove(modelId);
                     stepReadyModels.remove(modelId);
-                    System.out.println("MODEL " + modelId + " OFF (finish simulation). Count activeModels = " + activeModels.size());
+                    log.info("MODEL {} OFF (finish simulation). Count activeModels = {}", modelId, activeModels.size());
                     checkAndCompleteBarrier();
                 }
             }
         } catch (Exception e) {
-            System.err.print("Error registration: " + e.getMessage());
+            log.error("Error registration", e);
         }
     }
 
@@ -514,7 +516,7 @@ public class KafkaOrchestrator {
             admin.createTopics(Collections.singleton(topic)).all().get();
         } catch (ExecutionException e) {
             if (!(e.getCause() instanceof TopicExistsException)) {
-                System.err.print("Topic created error " + topicName + ": " + e.getMessage());
+                log.error("Topic created error", e);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -528,11 +530,11 @@ public class KafkaOrchestrator {
                 ModelInfo info = activeModels.get(msg.getSenderModelId());
                 if (info != null) {
                     info.lastHeartbeat = Instant.now();
-                    System.out.println(LocalTime.now() + " ok " + msg.getSenderModelId());
+                    log.info("{} ok {}", LocalTime.now(), msg.getSenderModelId());
                 }
             }
         } catch (Exception e) {
-            System.err.print("Heartbeat error: " + e.getMessage());
+            log.error("Heartbeat error", e);
         }
     }
 
@@ -557,7 +559,7 @@ public class KafkaOrchestrator {
                         producer.send(new ProducerRecord<>(targetInfo.inboxTopic, outMsg.toByteArray()),
                                 (metadata, exception) -> {
                                     if (exception != null) {
-                                        System.err.print("Sending error to agent: " + exception.getMessage());
+                                        log.error("Sending error to agent", exception);
                                         sendToDeadLetterQueue(raw, "Send failed");
                                     }
                                 });
@@ -568,10 +570,10 @@ public class KafkaOrchestrator {
                 case KIND_NOT_SET -> {}
             }
             if (this.isDebug) {
-                System.out.println(msg.getKindCase() + " from " + sender);
+                log.debug("{} from {}", msg.getKindCase(), sender);
             }
         } catch (InvalidProtocolBufferException e) {
-            System.err.print("Protobuf deserialization error: " + e.getMessage());
+            log.error("Protobuf deserialization error", e);
             sendToDeadLetterQueue(raw, "Invalid Protobuf format: " + e.getMessage());
         }
     }
@@ -584,7 +586,7 @@ public class KafkaOrchestrator {
             synchronized (stepReadyModels) {
                 stepReadyModels.add(modelId);
                 if (this.isDebug) {
-                    System.out.println("Model " + modelId + " completed step. Done: " + stepReadyModels.size() + "/" + activeModels.size());
+                    log.debug("Model {} completed step. Done: {}/{}", modelId, stepReadyModels.size(), activeModels.size());
                 }
             }
         } else {
@@ -594,7 +596,7 @@ public class KafkaOrchestrator {
             synchronized (stepReadyModels) {
                 stepReadyModels.remove(modelId);
             }
-            System.out.println("Model " + modelId + " completed step and finished simulation");
+            log.info("Model {} completed step and finished simulation", modelId);
         }
         checkAndCompleteBarrier();
     }
@@ -631,15 +633,15 @@ public class KafkaOrchestrator {
             producer.send(new ProducerRecord<>(SIMULATION_CONTROL_TOPIC, modelId, msg.toByteArray()),
                     (metadata, exception) -> {
                         if (exception != null) {
-                            System.err.print("Error to sending command NEXT_STEP to model " + modelId + ": " + exception.getMessage());
+                            log.error("Error to sending command NEXT_STEP to model {}", modelId, exception);
                         } else {
                             if (this.isDebug) {
-                                System.out.println("NEXT_STEP has been sent to model " + modelId);
+                                log.debug("NEXT_STEP has been sent to model {}", modelId);
                             }
                         }
                     });
         } catch (Exception e) {
-            System.err.print("Command created error: " + e.getMessage());
+            log.error("Command created error", e);
         }
     }
 
@@ -652,13 +654,13 @@ public class KafkaOrchestrator {
             producer.send(new ProducerRecord<>(SIMULATION_CONTROL_TOPIC, modelId, msg.toByteArray()),
                     (metadata, exception) -> {
                         if (exception != null) {
-                            System.err.print("Error to sending command STOP_SIMULATION to model " + modelId + ": " + exception.getMessage());
+                            log.error("Error to sending command STOP_SIMULATION to model {}: {}", modelId, exception.getMessage());
                         } else {
-                            System.out.println("STOP_SIMULATION has been sent to model " + modelId);
+                            log.info("STOP_SIMULATION has been sent to model {}", modelId);
                         }
                     });
         } catch (Exception e) {
-            System.err.print("Command created error: " + e.getMessage());
+            log.error("Command created error", e);
         }
     }
 
@@ -678,11 +680,11 @@ public class KafkaOrchestrator {
                 synchronized (stepReadyModels) {
                     stepReadyModels.remove(id);
                 }
-                System.out.println("MODEL " + id + " OFF (heartbeat timeout)");
+                log.info("MODEL {} OFF (heartbeat timeout)", id);
             }
             if (!dead.isEmpty()) checkAndCompleteBarrier();
         } catch (Exception e) {
-            System.err.print("Heartbeat thread error " + e.getMessage());
+            log.error("Heartbeat thread error", e);
         }
     }
 
@@ -695,10 +697,10 @@ public class KafkaOrchestrator {
             // Логируем только в режиме отладки, чтобы не засорять консоль
             // при массовых отправках в DLQ (например, при завершении симуляции).
             if (this.isDebug) {
-                System.out.println("Message has been sent to DLQ: " + reason);
+                log.debug("Message has been sent to DLQ: {}", reason);
             }
         } catch (Exception e) {
-            System.err.print("Error sending to DLQ: " + e.getMessage());
+            log.error("Error sending to DLQ: ", e);
         }
     }
 
@@ -722,7 +724,7 @@ public class KafkaOrchestrator {
         }
 
         terminateAllModelProcesses();
-        System.out.println("Orchestrator's resources are free");
+        log.info("Orchestrator's resources are free");
     }
 
     @Override

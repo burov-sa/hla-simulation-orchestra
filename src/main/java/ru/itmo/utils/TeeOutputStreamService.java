@@ -4,11 +4,14 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import lombok.extern.log4j.Log4j2;
 
 /**
  * Класс TeeOutputStream представляет собой Т-образный разветвитель потока вывода.
  * Он дублирует стандартную консоль в файл и поддерживает автоматическую инициализацию.
  */
+@Log4j2
 public class TeeOutputStreamService extends OutputStream {
 
     private final OutputStream out1;
@@ -36,18 +39,17 @@ public class TeeOutputStreamService extends OutputStream {
 
             // Создаем разветвленные потоки для System.out и System.err
             // Включаем auto-flush (true), чтобы данные сразу сбрасывались на диск
-            PrintStream teeOut = new PrintStream(new TeeOutputStreamService(System.out, fos), true, "UTF-8");
-            PrintStream teeErr = new PrintStream(new TeeOutputStreamService(System.err, fos), true, "UTF-8");
+            PrintStream teeOut = new PrintStream(new TeeOutputStreamService(System.out, fos), true, StandardCharsets.UTF_8);
+            PrintStream teeErr = new PrintStream(new TeeOutputStreamService(System.err, fos), true, StandardCharsets.UTF_8);
 
             // Перенаправляем стандартные потоки Java
             System.setOut(teeOut);
             System.setErr(teeErr);
 
             String modeMessage = append ? "дописание в конец" : "очистка файла";
-            System.out.println("--- Перехват консоли запущен (Режим: " + modeMessage + ") ---");
+            log.info("Перехват консоли запущен (Режим: {}) ---", modeMessage);
         } catch (Exception e) {
-            System.err.println("Error: error initianalization interrupt console: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Error: error initianalization interrupt console", e);
         }
     }
 

@@ -2,11 +2,16 @@ package ru.itmo.infrastructure;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.Getter;
+import lombok.extern.log4j.Log4j2;
 
+@Log4j2
 public class TestEngine implements IEngine {
 
     private volatile double scheduledEndTime = -1;
+    @Getter
     private final double startTime;
+    @Getter
     private final double stopTime;
     private final AtomicReference<Double> currentTime;
 
@@ -39,15 +44,18 @@ public class TestEngine implements IEngine {
         this.currentTime = new AtomicReference<>(startTime);
     }
 
-    @Override public double time() { return currentTime.get(); }
-    @Override public double getStartTime() { return startTime; }
-    @Override public double getStopTime() { return stopTime; }
+    @Override
+    public double time() {
+        return currentTime.get();
+    }
 
     @Override
     public boolean run() {
         runCount.incrementAndGet();
-        System.out.println("[TestEngine] run() called. Time: " + time());
-        if (isRunning) return false;
+        log.debug("run() called. Time: {}", time());
+        if (isRunning) {
+            return false;
+        }
         isRunning = true;
         isPaused = false;
         simulateWork();
@@ -57,8 +65,10 @@ public class TestEngine implements IEngine {
     @Override
     public boolean runFast() {
         runFastCount.incrementAndGet();
-        System.out.println("[TestEngine] runFast() called. Time: " + time());
-        if (isRunning) return false;
+        log.debug("runFast() called. Time: {}", time());
+        if (isRunning) {
+            return false;
+        }
         isRunning = true;
         isPaused = false;
 
@@ -79,7 +89,9 @@ public class TestEngine implements IEngine {
     public boolean pause() {
         pauseCount.incrementAndGet();
         System.out.println("[TestEngine] pause() called. Time: " + time());
-        if (!isRunning && !isPaused) return false;
+        if (!isRunning && !isPaused) {
+            return false;
+        }
         isRunning = false;
         isPaused = true;
         return true;
@@ -89,7 +101,9 @@ public class TestEngine implements IEngine {
     public boolean stop() {
         stopCount.incrementAndGet();
         System.out.println("[TestEngine] stop() called.");
-        if (!isRunning && !isPaused) return false;
+        if (!isRunning && !isPaused) {
+            return false;
+        }
         isRunning = false;
         isPaused = false;
         return true;
@@ -125,17 +139,45 @@ public class TestEngine implements IEngine {
     }
 
     // Геттеры
-    public int getRunCount() { return runCount.get(); }
-    public int getRunFastCount() { return runFastCount.get(); }
-    public int getPauseCount() { return pauseCount.get(); }
-    public int getStopCount() { return stopCount.get(); }
-    public int getFirstStepEventCount() { return firstStepEventCount.get(); }
-    public int getStepStartEventCount() { return stepStartEventCount.get(); }
-    public int getStepEndEventCount() { return stepEndEventCount.get(); }
-    public Double getLastStepEndDuration() { return lastStepEndDuration.get(); }
+    public int getRunCount() {
+        return runCount.get();
+    }
 
-    public void setTime(double newTime) { currentTime.set(newTime); }
-    public void advanceTime(double delta) { currentTime.updateAndGet(v -> v + delta); }
+    public int getRunFastCount() {
+        return runFastCount.get();
+    }
+
+    public int getPauseCount() {
+        return pauseCount.get();
+    }
+
+    public int getStopCount() {
+        return stopCount.get();
+    }
+
+    public int getFirstStepEventCount() {
+        return firstStepEventCount.get();
+    }
+
+    public int getStepStartEventCount() {
+        return stepStartEventCount.get();
+    }
+
+    public int getStepEndEventCount() {
+        return stepEndEventCount.get();
+    }
+
+    public Double getLastStepEndDuration() {
+        return lastStepEndDuration.get();
+    }
+
+    public void setTime(double newTime) {
+        currentTime.set(newTime);
+    }
+
+    public void advanceTime(double delta) {
+        currentTime.updateAndGet(v -> v + delta);
+    }
 
     private void simulateWork() {
         try {
