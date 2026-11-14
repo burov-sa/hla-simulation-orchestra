@@ -35,7 +35,7 @@ public class KafkaOrchestrantVisibilityTest {
     @Actor
     public void actor1_reader() {
         while (orchestrant.isRunning()) {
-            // busy-wait: ждем, когда другой поток выставит false
+            Thread.onSpinWait();
         }
     }
 

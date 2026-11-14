@@ -1,6 +1,8 @@
 package ru.itmo.infrastructure;
 
 import infrastructure.Protobufmessages;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -19,10 +21,14 @@ public final class KafkaOrchestrant {
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final AtomicBoolean stopped = new AtomicBoolean(false);
     private final AtomicBoolean shuttingDown = new AtomicBoolean(false);
+    @Getter
     private volatile boolean firstStepFinished = false;
+    @Setter
     private volatile boolean readyForStep = false;
 
+    @Getter
     private IEngine engine;
+    @Getter
     private KafkaProducer<String, byte[]> producer;
     public java.util.Queue<Runnable> tasksFromKafka = new java.util.concurrent.ConcurrentLinkedQueue<>();
     private HeartbeatOrchestrantService heartbeat;
@@ -33,6 +39,7 @@ public final class KafkaOrchestrant {
     private static final String ORCHESTRATOR_INBOX = "orchestrator-inbox";
     private static final String SIMULATION_CONTROL_TOPIC = "simulation-control";
     private static final String HEARTBEAT_TOPIC = "model-heartbeat";
+    @Getter
     private String inboxTopic;
 
     public KafkaOrchestrant(String id, IEngine engine, IReceivingAgent reseivingAgent, boolean debugMode) {
@@ -44,18 +51,16 @@ public final class KafkaOrchestrant {
     }
 
     public String getID() { return this.id; }
-    public Boolean isRunning() { return this.running.get(); }
-    public Boolean isWaiting() { return this.readyForStep; }
-    public Boolean isFirstStepFinished() { return this.firstStepFinished; }
-    public KafkaProducer<String, byte[]> getProducer() { return this.producer; }
-    public IEngine getEngine() { return this.engine; }
+    public boolean isRunning() { return this.running.get(); }
+    public boolean isWaiting() { return this.readyForStep; }
+
     public String getOrchestratorInbox() { return this.ORCHESTRATOR_INBOX; }
     public String getSimulationControlTopic() { return this.SIMULATION_CONTROL_TOPIC; }
     public String getModelRegistyTopic() { return this.MODEL_REGISTRY_TOPIC; }
     public String getHeartbeatTopic() { return this.HEARTBEAT_TOPIC; }
-    public String getInboxTopic() { return this.inboxTopic; }
+
     public void setTrueFirstStepFinished() { this.firstStepFinished = true; }
-    public void setReadyForStep(boolean isReady) { this.readyForStep = isReady; }
+
     public void setRunning(boolean value) { this.running.set(value); }
 
     public void init() {
